@@ -2,6 +2,17 @@ Array.prototype.clone = function() {return this.slice(0);}
 Array.prototype.back = function() {return this[this.length - 1];}
 var generalcounter = 0;
 
+function join_strings(strings, delimiter){
+    var joined = "";
+    for(var i = 0; i < strings.length ; i++){
+        joined += strings[i];
+        if(i < strings.length - 1){
+            joined += delimiter;
+        }
+    }
+    return joined;
+}
+
 class Situa {
     constructor(active_unpaired_members, friends) {
         this.curr_solution = [];// array of groups
@@ -38,8 +49,9 @@ class Member {
 }
 
 class Group {
-    constructor() {
+    constructor(notified = false) {
         this.group_members = [];
+        this.notified = notified;
         this.add_member = function (member) {
             this.group_members.push(member);
         };
@@ -53,15 +65,11 @@ class Group {
 
 class GScript{
     static get_members() {
-        //TODO add implementation
-        return [
-            new Member(0, "name0", true, "info0@email.com", "@1234567890", 1),
-            new Member(1, "name1", true, "info1@email.com", "@1234567891", 1),
-            new Member(2, "name2", true, "info2@email.com", "@1234567892", 2),
-            new Member(3, "name3", true, "info3@email.com", "@1234567893", 1),
-            new Member(4, "name3", true, "info3@email.com", "@1234567893", 1),
-            new Member(5, "name3", true, "info3@email.com", "@1234567893", 1),
-            ];
+        var members_with_id_sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Members_With_ID");
+        var coffee_club_members_raw = members_with_id_sheet.getRange(1, 1, members_with_id_sheet.getLastRow(), members_with_id_sheet.getLastColumn())
+        .getValues()
+        .filter(function(member){return typeof(member[0]) == "number"});        
+        return coffee_club_members_raw.map(raw => new Member(raw[0], raw[2], raw[3] == 'Iscriverti', raw[4], raw[5], raw[6]));
     }
 
     static get_friends_matrix(max_id) {
@@ -69,13 +77,31 @@ class GScript{
         for(var i = 0; i <= max_id; i++) {
             matrix.push(new Set([i]));
         }
-        var friends_list = [[0, 3], [1, 4], [2, 5]]; //FIXME call Google Spreadsheet result
-        friends_list.forEach(pair => {
-            matrix[pair[0]].add(pair[1]);
-            matrix[pair[1]].add(pair[0]);
+        var group_list = this.get_friend_groups();
+        group_list.forEach(group => {
+            for(var a = 0; a < group.group_members.length; a++){
+                for(var b = 0; b < group.group_members.length; b++){
+                    matrix[group.group_members[a]].add(group.group_members[b]);
+                }
+            }
         });
-        console.log(matrix);
         return matrix;
+    }
+
+    static get_friend_groups(){
+        var friends_sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Friends");
+        var group_rows = friends_sheet.getRange(1, 1, friends_sheet.getLastRow(), friends_sheet.getLastColumn())
+                                      .getValues()
+                                      .filter(function(row){return typeof(row[2]) == "number"});
+        return group_rows.map(row => this.row_to_group(row));        
+    }
+
+    static row_to_group(row){
+        var group = new Group(row[1] == "YES");
+        for(var i = 2; i < row.length && typeof(row[i]) == "number"; i++){
+            group.add_member(row[i]);
+        }
+        return group;
     }
 }
 
@@ -122,7 +148,32 @@ function make_groups(curr_situa, normal_groups_size) {
         curr_situa.curr_solution.pop();
 }
 
-function have_coffee_club() {
+function generate_email_body_to_notify_group(members){
+    var message = "Ciao " + join_strings(members.map(member => member.name.split(" ")[0]), ", ") + "\n\n" +
+                  "Sono Sam di Lead The Future, vi scrivo per il coffee club di questo mese.\n" +
+                  "Questo mese sarete in gruppo assieme!\n" +
+                  "Vi lascio le mail e gli id Telegram che avete inserito in fase di iscrizione, in modo che possiate contattarvi:\n\n" +
+                  "Telegram ids:\n" + join_strings (members.map(member => member.telegram_id), "\n") + "\n\n" +
+                  "Emails:\n" + join_strings (members.map(member => member.email), "\n") + "\n\n" +
+                  "Fatemi sapere nel caso abbiate problemi, suggerimenti, e soprattutto se avreste piacere di fare il coffee club ogni due settimane invece che ogni mese.\n" +
+                  "I feedback sono molto apprezzati, sia positivi sia negativi!\n\n" +
+                  "A presto,\n" +
+                  "Sam :)\n";
+    return message;
+}
+
+function send_emails_to_groups() {
+    var members = GScript.get_members(); // array of Members
+    var friend_groups_to_notify = GScript.get_friend_groups().filter(group => !group.notified);
+    friend_groups_to_notify.forEach(group => {
+        var group_members = group.group_members.map(member_id => members[member_id]);
+        var email_body = generate_email_body_to_notify_group(group_members);
+        //var to = join_strings(members.map(member => member.email), ",");
+        MailApp.sendEmail('samuele.ceroni@leadthefuture.tech', 'Coffee Club - Lead The Future', email_body);
+    });
+}
+
+function have_coffee_club1() {
     var members = GScript.get_members(); // array of Members
     var max_members_id = members.map(member => member.id)
                                 .reduce((x, y) => Math.max(x, y));
@@ -132,16 +183,39 @@ function have_coffee_club() {
     var friends = GScript.get_friends_matrix(max_members_id);
     var curr_situa = new Situa(active_members_id, friends);
     
-    make_groups(curr_situa, 3);
+    make_groups(curr_situa, 2);
     var groups = curr_situa.curr_solution;
-    //console.log(groups);
-    console.log(curr_situa.active_unpaired_members.size === 0);
-    // write_groups_to_friends_sheet(groups);
-    // send_emails_to_groups(groups, active_members);
+    console.log(groups);
+    console.log();
+    if(curr_situa.active_unpaired_members.size === 0){
+        debug(groups.map(group => group.group_members));
+    } else {
+        debug(["Error, can't make groups"]);
+    }
 }
 
-have_coffee_club();
 
+//////////////////////////////////////////////////////////////////////
+
+
+function try_send_email() {
+    //MailApp.sendEmail('samuele.ceroni@gmail.com', 'subject prova', 'testo prova');
+}
+
+function try_get_friends(){
+    console.log(GScript.get_friends_matrix(54));
+}
+
+function try_get_friends_groups(){
+    console.log(GScript.get_friend_groups());
+}
+
+//have_coffee_club1();
+
+function debug(object){
+    var debug_sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Debug");
+    object.forEach(function(element){debug_sheet.appendRow(element);})  
+}
 
 // tests
 // test_get_possible_matches();
