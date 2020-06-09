@@ -168,8 +168,10 @@ function send_emails_to_groups() {
     friend_groups_to_notify.forEach(group => {
         var group_members = group.group_members.map(member_id => members[member_id]);
         var email_body = generate_email_body_to_notify_group(group_members);
-        //var to = join_strings(members.map(member => member.email), ",");
-        MailApp.sendEmail('samuele.ceroni@leadthefuture.tech', 'Coffee Club - Lead The Future', email_body);
+        var to = join_strings(group_members.map(member => member.email), ",");
+        //var to = join_strings(['samuele.ceroni@leadthefuture.tech', 'samuele.ceroni@gmail.com'], ",");
+        
+        MailApp.sendEmail('samuele.ceroni@leadthefuture.tech,' + to, 'Coffee Club - Lead The Future', email_body);
     });
 }
 
