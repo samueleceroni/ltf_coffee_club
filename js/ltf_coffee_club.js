@@ -1,6 +1,5 @@
 Array.prototype.clone = function() {return this.slice(0);}
 Array.prototype.back = function() {return this[this.length - 1];}
-var generalcounter = 0;
 
 function join_strings(strings, delimiter){
     var joined = "";
@@ -131,10 +130,6 @@ function make_groups(curr_situa, normal_groups_size) {
             curr_situa.make_friends(member, match);
         });
         curr_situa.curr_solution.back().add_member(match);
-        console.log(generalcounter + ': ');
-        console.log(curr_situa.active_unpaired_members);
-        console.log(curr_situa.curr_solution);
-        generalcounter++;
         make_groups(curr_situa, normal_groups_size);
         if(curr_situa.active_unpaired_members.size === 0)
             return;
@@ -187,8 +182,6 @@ function have_coffee_club1() {
     
     make_groups(curr_situa, 2);
     var groups = curr_situa.curr_solution;
-    console.log(groups);
-    console.log();
     if(curr_situa.active_unpaired_members.size === 0){
         debug(groups.map(group => group.group_members));
     } else {
@@ -198,21 +191,6 @@ function have_coffee_club1() {
 
 
 //////////////////////////////////////////////////////////////////////
-
-
-function try_send_email() {
-    //MailApp.sendEmail('samuele.ceroni@gmail.com', 'subject prova', 'testo prova');
-}
-
-function try_get_friends(){
-    console.log(GScript.get_friends_matrix(54));
-}
-
-function try_get_friends_groups(){
-    console.log(GScript.get_friend_groups());
-}
-
-//have_coffee_club1();
 
 function debug(object){
     var debug_sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Debug");
