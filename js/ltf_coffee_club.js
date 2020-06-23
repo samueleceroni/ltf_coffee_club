@@ -170,11 +170,12 @@ function send_emails_to_groups() {
     });
 }
 
-function have_coffee_club1() {
+function have_coffee_club1(second_time_only = false) {
     var members = GScript.get_members(); // array of Members
     var max_members_id = members.map(member => member.id)
                                 .reduce((x, y) => Math.max(x, y));
     var active_members_id = members.filter(member => member.enabled === true)
+                                   .filter(member => second_time_only == false || member.times_per_month == 2)
                                    .map(member => member.id);
     //FIXME add shuffle of active members id, change order
     var friends = GScript.get_friends_matrix(max_members_id);
@@ -189,6 +190,9 @@ function have_coffee_club1() {
     }
 }
 
+function have_coffee_club2(){
+    have_coffee_club1(true);
+}
 
 //////////////////////////////////////////////////////////////////////
 
